@@ -18,6 +18,8 @@ In this `README.md` file we describe briefly the content of each document and su
 * Add description of arguments in configuration file
 * Organize trained models inside `saved_models` in a way that it is clear how each model was trained (which dataset was used, which (hyper)parameters, etc) and which performance it achieved. Maybe a csv file containg each model as a row, and each property (dataset, learning rate, etc) as a column?
 * Document each function correctly (describe what they do with docstrings).
+* Make save_model in TrainerSegmentation class also saves separately only the model's state (very light compared to full disctionary for resuming training).
+
 
 
 
