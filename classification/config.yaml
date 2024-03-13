@@ -1,0 +1,21 @@
+data_args:
+  data_dir: data/
+  train_test_split: 0.8
+  train_val_split: 0.8
+  sequences: ['11', '10', '01', '00']
+  crop_locs: [0.1, 0.5, 0.9]
+  membrane_shape: [160, 480]
+  zone_shape: [160, 160]
+training_args:  
+  save_path: models/
+  seed: 42
+  batch_size: 16
+  num_workers: 0
+  lr: 0.001
+  weight_decay: 0.00001
+  scheduler_step: 30
+  scheduler_gamma: 0.2
+  epochs: 10
+inference_args:
+  output_dir: results
+  diagnosis_map: {'11': 1, '10': 0, '01': 99, '00': 99}
