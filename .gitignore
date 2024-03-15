@@ -1,8 +1,8 @@
 # Exclude all data files and saved models
 data/*
-segmentation/data/*
-segmentation/models/*
-segmentation/results/*
-classification/data/*
-classification/models/*
-classification/results/*
+segmentation/data_seg/*
+segmentation/models_seg/*
+segmentation/results_seg/*
+classification/data_cla/*
+classification/models_cla/*
+classification/results_cla/*
