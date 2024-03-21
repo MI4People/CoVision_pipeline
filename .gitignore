@@ -3,6 +3,9 @@ data/*
 segmentation/data_seg/*
 segmentation/models_seg/*
 segmentation/results_seg/*
-classification/data_cla/*
-classification/models_cla/*
-classification/results_cla/*
+
+*.jpg
+classification/models_cla/mlruns/*/
+!classification/models_cla/mlruns/models/
+
+

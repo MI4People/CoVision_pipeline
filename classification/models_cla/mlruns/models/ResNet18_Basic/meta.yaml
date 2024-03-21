@@ -1,0 +1,5 @@
+aliases: {}
+creation_timestamp: 1710936710147
+description: Simple ResNet-18 architecture with a 1-layer output for binary classification.
+last_updated_timestamp: 1710936913087
+name: ResNet18_Basic

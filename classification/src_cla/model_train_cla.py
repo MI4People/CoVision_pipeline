@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch import nn, optim
+import copy
 
 from time import time
 from datetime import datetime as dt
@@ -24,22 +25,19 @@ from utils_cla.miscellaneous import set_seed
 
 
 class TrainerClassification:
-    def __init__(self, args, kit_id, do_validation=True, val_set='val', shots=None):
+    def __init__(self, args, parameters, do_validation=True):
 
         # Assign attributes
         self.args = args
-        self.kit_id = kit_id
+        self.parameters = argparse.Namespace(**parameters)
         self.do_validation = do_validation
-        self.val_set = val_set
-        self.shots = shots
-
-        # Split configuration file
-        self.data_args = argparse.Namespace(**args.data_args)
-        self.training_args = argparse.Namespace(**args.training_args)
+        self.kit_id = self.parameters.kit_id
+        self.val_set = self.parameters.val_set
+        self.shots = self.parameters.shots
 
         # Device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.args.training_args['device'] = self.device
+        self.parameters.device = self.device
         print(f'Using {self.device} device')
 
         # Metrics
@@ -47,7 +45,7 @@ class TrainerClassification:
         self.metrics_val = {'loss': [], 'accuracy': []} if self.do_validation else None
 
         # Set seed for reproducibility
-        set_seed(self.training_args.seed)
+        set_seed(self.parameters.seed)
 
         # Transformations
         self.transformation_train = AugmentedMembraneZones()
@@ -59,21 +57,28 @@ class TrainerClassification:
         self.n_val = len(self.loader_val)
         self.n_valset = len(self.loader_val.dataset)*self.loader_train.dataset.n_zones
 
-        # Model architecture, criterion, optimizer, and scheduler
+        # Model architecture
         self.model = ClassificationModel().to(self.device)
+        self.best_model = copy.deepcopy(self.model)  # keep track of best model
+        # Optimizer
         self.optimizer = optim.Adam(
             params=self.model.parameters(), 
-            lr=float(self.training_args.lr), 
-            weight_decay=float(self.training_args.weight_decay))
+            lr=float(self.parameters.lr), 
+            weight_decay=float(self.parameters.weight_decay))
+        # Criterion
         self.criterion = nn.BCELoss(reduction='mean')
-        self.scheduler = optim.lr_scheduler.StepLR(
-            self.optimizer, 
-            step_size=self.training_args.scheduler_step, 
-            gamma=self.training_args.scheduler_gamma)
+        # Scheduler
+        if self.parameters.scheduler_step is not None:
+            self.scheduler = optim.lr_scheduler.StepLR(
+                self.optimizer, 
+                step_size=self.parameters.scheduler_step, 
+                gamma=self.parameters.scheduler_gamma)
+        else:
+            self.scheduler = None
         
         # Timestamp to identify training runs
         time_str = dt.now().strftime('%Y-%m-%d_%H.%M.%S')  
-        self.file_path = f'{self.training_args.save_path}/{time_str}'
+        self.file_path = os.path.join(self.args.save_path, time_str)
         
         # To continue training from checkpoint
         self.start_epoch = 0
@@ -81,15 +86,15 @@ class TrainerClassification:
         self.best_accuracy = 0.0
         self.best_epoch = 0
 
-    def train(self, save_bool=False):
+    def train(self, save_state_bool=False, save_model_bool=False):
         """
         Trains and validates the model for all epochs, store the training and
         validation metrics, log results and save the best models.
         """        
 
         # To log fancy progress bar
-        epoch_loop = tqdm(range(1 + self.start_epoch, self.training_args.epochs + 1))
-        epoch_loop.set_description(f"Training for {self.training_args.epochs} epochs")  # Description
+        epoch_loop = tqdm(range(1 + self.start_epoch, self.parameters.epochs + 1))
+        epoch_loop.set_description(f"Training for {self.parameters.epochs} epochs")  # Description
 
         start = time() - self.elapsed_time.seconds  #  For elapsed time
         for epoch_ndx in epoch_loop:
@@ -99,12 +104,20 @@ class TrainerClassification:
             
             if self.do_validation:
             
-                # Validate, update validation metrics and return epoch loss and accuracy
-                epoch_val_loss, epoch_val_accuracy = self.validate(epoch_ndx)
-                
+                # Validate, and return epoch loss and accuracy
+                epoch_val_loss, epoch_val_accuracy = self.evaluate(self.loader_val, self.n_val, epoch_ndx)
+                # Update metrics
+                self.metrics_val['loss'].append(epoch_val_loss)                                                                                                                                                                                                                                 
+                self.metrics_val['accuracy'].append(epoch_val_accuracy)
+
+                # Update best model
                 if epoch_val_accuracy > self.best_accuracy:
                     self.best_accuracy = epoch_val_accuracy
                     self.best_epoch = epoch_ndx
+                    self.best_model = copy.deepcopy(self.model)
+                    # Save model state
+                    if save_model_bool:
+                        self.save_model()
                                
                 # Number of missclassified examples
                 n_wrong = self.n_valset - int(epoch_val_accuracy*self.n_valset)
@@ -115,22 +128,24 @@ class TrainerClassification:
                 end = time()
                 self.elapsed_time = timedelta(seconds=int(end-start))
             
-                # Save model (in separate file if it is the best)
-                if save_bool:
+                # Save full class state (in separate file if it is the best)
+                if save_state_bool:
                     if epoch_val_accuracy == self.best_accuracy:
-                        self.save_model(epoch_ndx, stamp='_best')
+                        self.save_state(epoch_ndx, stamp='_best')
                     else:
-                        self.save_model(epoch_ndx, stamp='')
+                        self.save_state(epoch_ndx, stamp='')
+                
 
             else:
                 epoch_loop.set_postfix_str(f"Train Loss = {epoch_train_loss:.4f}, Val Loss = {epoch_val_loss:.4f}, Train Acc = {(epoch_train_accuracy*100):.3f}")             
 
             # Update scheduler and log the change in learning rate
-            before_lr = self.optimizer.param_groups[0]["lr"]
-            self.scheduler.step()
-            after_lr = self.optimizer.param_groups[0]["lr"]
-            if after_lr != before_lr:
-                print(f"Epoch {epoch_ndx}: lr {before_lr} -> {after_lr}")
+            if self.scheduler is not None:
+                before_lr = self.optimizer.param_groups[0]["lr"]
+                self.scheduler.step()
+                after_lr = self.optimizer.param_groups[0]["lr"]
+                if after_lr != before_lr:
+                    print(f"Epoch {epoch_ndx}: lr {before_lr} -> {after_lr}")
 
     def init_dataloaders(self):
         """
@@ -142,10 +157,10 @@ class TrainerClassification:
         print("Loading data...")
 
         loader_train = init_dataloader(
-            self.data_args, self.kit_id, 
+            self.args, self.kit_id, 
             data_mode='train',
-            n_batches=self.training_args.batch_size//2,
-            n_workers=self.training_args.num_workers,
+            n_batches=self.parameters.batch_size//2,
+            n_workers=self.parameters.num_workers,
             shuffle=True,
             shots=self.shots, 
             transform=self.transformation_train)
@@ -153,12 +168,12 @@ class TrainerClassification:
         # Validation dataloader using 'val' or 'test' sets (as specified by self.val_set)
         if self.do_validation:
             loader_val = init_dataloader(
-                self.data_args, self.kit_id, 
+                self.args, self.kit_id, 
                 data_mode=self.val_set,
-                n_batches=self.training_args.batch_size//2,
-                n_workers=self.training_args.num_workers,
+                n_batches=self.parameters.batch_size//2,
+                n_workers=self.parameters.num_workers,
                 shuffle=False,
-                shots=None, 
+                shots=[None]*len(self.shots), 
                 transform=self.transformation_val)
         else:
             loader_val = []
@@ -213,9 +228,9 @@ class TrainerClassification:
         return running_loss, running_accuracy
 
     @torch.no_grad()
-    def validate(self, epoch_ndx):
+    def evaluate(self, loader, n_loader, epoch_ndx=None):
         """
-        Validate the model over the entire validation set, calculate and update performance metrics
+        Evaluate the model over an entire dataloader and calculate performance metrics
         """
 
         # Set model to evaluation mode
@@ -226,10 +241,13 @@ class TrainerClassification:
         running_accuracy = 0.0
 
         # To log fancy progress bar
-        val_loop = tqdm(self.loader_val, total=self.n_val)
-        val_loop.set_description(f"Epoch {epoch_ndx} | Validation")
+        loop = tqdm(loader, total=n_loader)
+        if epoch_ndx is not None:
+            loop.set_description(f"Epoch {epoch_ndx} | Evaluation")
+        else:
+            loop.set_description(f"Evaluation")
 
-        for x, y in val_loop:
+        for x, y in loop:
             # Send to device
             x = x.to(self.device)
             y = y.to(self.device)
@@ -243,13 +261,11 @@ class TrainerClassification:
             running_loss += loss
             running_accuracy += accuracy
             # Update progress bar
-            val_loop.set_postfix_str(f"Loss = {loss:.4f} | Accuracy = {(accuracy*100):.3f}%")
+            loop.set_postfix_str(f"Loss = {loss:.4f} | Accuracy = {(accuracy*100):.3f}%")
         
-        # Update metrics
-        running_loss /= self.n_val
-        running_accuracy /= self.n_val
-        self.metrics_val['loss'].append(running_loss)
-        self.metrics_val['accuracy'].append(running_accuracy)
+        
+        running_loss /= n_loader
+        running_accuracy /= n_loader
 
         return running_loss, running_accuracy
 
@@ -271,32 +287,36 @@ class TrainerClassification:
 
         return metrics_train_df, metrics_val_df
 
-    def save_model(self, epoch_ndx, stamp):
+    @property
+    def get_parameters(self):
         """
-        Save model state, parameters, and metrics.
+        Return parameters attribute but in dictionary format
+        """
+        return {k:v for k, v in self.parameters._get_kwargs()}
+
+    def save_state(self, epoch_ndx, stamp):
+        """
+        Save whole instance state: model state, parameters, metrics, etc
         """
         state = {'args': self.args,
-                 'kit_id': self.kit_id,
+                 'parameters': {k:v for k, v in self.parameters._get_kwargs()},
                  'do_validation': self.do_validation,
-                 'val_set': self.val_set,
-                 'shots': self.shots,
                  'model_state': self.model.state_dict(),
                  'optimizer_state': self.optimizer.state_dict(),
-                 'scheduler_state': self.scheduler.state_dict(),
+                 'scheduler_state': self.scheduler.state_dict() if self.scheduler is not None else None,
                  'metrics_train': self.metrics_train,
                  'metrics_val': self.metrics_val, 
                  'file_path': self.file_path,
-                 'epoch': epoch,
+                 'epoch': epoch_ndx,
                  'elapsed_time': self.elapsed_time,
                  'best_accuracy': self.best_accuracy}
         torch.save(state, self.file_path + stamp + '.state')
 
-    def save_txt_file(self):
-        with open(self.file_path + '.txt', 'w') as file:
-            file.write(str(self.args) + '\n\n')
-            file.write(f'Best accuracy: {str(self.best_accuracy)}\n')
-            file.write(f'Ratio: {str(int((1 - self.best_accuracy)*self.n_valset))}\n')
-            file.write(f'Best epoch: {str(self.best_epoch)}\n')
+    def save_model(self):
+        """
+        Save only model state 
+        """
+        torch.save({'model_state': self.model.state_dict()}, self.file_path + '_model.state')
 
     @classmethod
     def from_saved_state(cls, state_path, new_epochs=None):
@@ -308,27 +328,26 @@ class TrainerClassification:
         print("Loading saved state...")
         
         state = torch.load(state_path, map_location=torch.device('cpu'))
-
+        parameters = state['parameters']
         # Update new epochs in arg dictionary
         if new_epochs is not None:
-            if new_epochs <= state['args'].training_args['epochs']:
-              raise ValueError(f"new_epochs ({new_epochs}) must be bigger than current epochs ({state['args'].training_args['epochs']})!")
-            state['args'].training_args['epochs'] = new_epochs
+            if new_epochs <= parameters['epochs']:
+              raise ValueError(f"new_epochs ({new_epochs}) must be bigger than current epochs ({parameters['epochs']})!")
+            parameters['epochs'] = new_epochs
         
         print(f"Epoch: {state['epoch']}")
         print(f"Best accuracy: {state['best_accuracy']}")
         print(f"Elapsed time: {state['elapsed_time']}")
 
         trainer = cls(args=state['args'], 
-                      kit_id=state['kit_id'], 
-                      do_validation=state['do_validation'],
-                      val_set=state['val_set'], 
-                      shots=state['shots'])
+                      parameters=parameters,
+                      do_validation=state['do_validation'])
         
         # Load model, optimizer and scheduler states
         trainer.model.load_state_dict(state['model_state'])
         trainer.optimizer.load_state_dict(state['optimizer_state'])
-        trainer.scheduler.load_state_dict(state['scheduler_state'])
+        if trainer.scheduler is not None:
+            trainer.scheduler.load_state_dict(state['scheduler_state'])
         # Load metrics
         trainer.metrics_train = state['metrics_train']
         trainer.metrics_val = state['metrics_val']

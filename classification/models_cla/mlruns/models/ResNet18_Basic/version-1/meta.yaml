@@ -1,0 +1,16 @@
+aliases: []
+creation_timestamp: 1710936710176
+current_stage: None
+description: "This model is trained, and validated using the full trainset, and valset
+  of the aconag test kit. \nThe model is then evaluated on the full aconag testset,
+  as well as the full dataset of the deeblueag, and paramountag test kits."
+last_updated_timestamp: 1710936985699
+name: ResNet18_Basic
+run_id: 5c6cc97eb120476ca464389843fcb000
+run_link: ''
+source: file:///home/guybrush/Tomaco/covision/classification/models_cla/mlartifacts/5c6cc97eb120476ca464389843fcb000/artifacts/model
+status: READY
+status_message: null
+storage_location: file:///home/guybrush/Tomaco/covision/classification/models_cla/mlartifacts/5c6cc97eb120476ca464389843fcb000/artifacts/model
+user_id: null
+version: 1

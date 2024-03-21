@@ -35,6 +35,9 @@ def show_dataset(args, kit_id):
     plt.show()
 
 def show_zones(zones, n_cols=2, mean=None, std=None):
+    """
+    Display cropped zones.
+    """
 
     # Unormalize images
     if mean is not None and std is not None:

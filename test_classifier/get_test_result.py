@@ -40,6 +40,5 @@ if __name__ == '__main__':
     state_path = 'classification/models_cla/2024-03-03_18.28.26_best.state'
     model_c = model_cla.ClassificationModel.from_pretrained(state_path)
     # Predict result
-    image_path = "data/internet_images/internet_1.webp" #image_paths[35]
-    print(os.path.exists(image_path))
+    image_path = "data/internet_images/internet_3.webp" #image_paths[35]
     get_test_result(image_path, model_s, model_c, show_bool=True)

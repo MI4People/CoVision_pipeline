@@ -3,12 +3,12 @@ from torch.utils.data import DataLoader
 
 from dataset_cla import MembraneZonesDataset
 
-def init_dataloader(data_args, kit_id, data_mode, n_batches, n_workers, shuffle=False, shots=None, transform=None):
+def init_dataloader(args, kit_id, data_mode, n_batches, n_workers, shuffle=False, shots=None, transform=None):
         """
         Initialize dataloader
         """
 
-        dataset = MembraneZonesDataset(data_args,
+        dataset = MembraneZonesDataset(args,
                                        kit_id=kit_id,
                                        data_mode=data_mode,
                                        shots=shots,

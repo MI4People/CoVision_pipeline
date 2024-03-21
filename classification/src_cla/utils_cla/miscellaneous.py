@@ -20,7 +20,7 @@ def set_seed(seed):
 
 def crop_zones(args, membrane):
     """
-    Crop membrane into the relevant zones
+    Crop membrane into the relevant zones using universal cropping locations stored in args
     Return:
         zones (np.ndarray): The cropped zones concatenated into an array (e.g. shape (2, 160, 160, 3))
     """ 
