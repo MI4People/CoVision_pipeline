@@ -4,6 +4,7 @@ File containing the TrainerSegmentation class, the main class for training and v
 
 import os
 import argparse
+import copy
 import random
 import numpy as np
 import pandas as pd
@@ -24,20 +25,20 @@ from model_seg import get_segmentation_model
 
 
 class TrainerSegmentation:
-    def __init__(self, args, kit_id, do_validation=True, val_set='val', shots=None):
+    def __init__(self, args, parameters, do_validation=True):
 
         # Assign attributes
         self.args = args
-        self.kit_id = kit_id
+        self.parameters = argparse.Namespace(**parameters)
         self.do_validation = do_validation
-        self.val_set = val_set
-        self.shots = shots
+        self.kit_id = self.parameters.kit_id
+        self.val_set = self.parameters.val_set
+        self.shots = self.parameters.shots
 
         # Split configuration file
         self.data_args = argparse.Namespace(**args.data_args)
-        self.training_args = argparse.Namespace(**args.training_args)
         self.transformation_args = argparse.Namespace(**args.transformation_args)
-        self.inference_args = argparse.Namespace(**args.inference_args)
+        self.evaluation_args = argparse.Namespace(**args.evaluation_args)
         
         # Classes excluding background
         self.classes = self.data_args.classes[1:]
@@ -46,7 +47,7 @@ class TrainerSegmentation:
         
         # Device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.args.training_args['device'] = self.device
+        self.parameters.device = self.device
         print(f'Using {self.device} device')
 
         # Metrics
@@ -65,12 +66,9 @@ class TrainerSegmentation:
                                 'iou_box_membrane': []}
         else:
             self.metrics_val = None
-            
-        # To keep track of best model
-        self.best_iou = 0.0
 
         # Set seed for reproducibility
-        set_seed(self.training_args.seed)
+        set_seed(self.parameters.seed)
         
         # Transformations
         self.transformation_train = TransformationSegmentationTraining(self.transformation_args)
@@ -83,31 +81,43 @@ class TrainerSegmentation:
 
         # Model architecture, optimizer and scheduler
         self.model = get_segmentation_model(num_classes=len(self.data_args.classes),
-                                        hidden_size=self.training_args.hidden_size).to(self.device)
+                                        hidden_size=self.parameters.hidden_size).to(self.device)
+        self.best_model = copy.deepcopy(self.model)  # Keep track of best model
 
-        self.optimizer = Adam(params=self.model.parameters(), lr=float(self.training_args.lr))
+        self.optimizer = Adam(params=self.model.parameters(), lr=float(self.parameters.lr))
 
-        self.scheduler = lr_scheduler.StepLR(self.optimizer, 
-                                             step_size=int(self.training_args.scheduler_step), 
-                                             gamma=float(self.training_args.scheduler_gamma))
+        if self.parameters.scheduler_step is not None:
+            self.scheduler = lr_scheduler.StepLR(self.optimizer, 
+                                                step_size=int(self.parameters.scheduler_step), 
+                                                gamma=float(self.parameters.scheduler_gamma))
+        else:
+            self.scheduler = None
 
         # Timestamp to identify training runs
         time_str = dt.now().strftime('%Y-%m-%d_%H.%M.%S')  
-        self.file_path = f'{self.training_args.save_path}/{time_str}'
+        self.file_path = f'{self.data_args.save_path}/{time_str}'
         
-        # To continue training from checkpoint
+        # To keep track best models and continue training from checkpoint
+        self.best_iou_mean = 0.0
+        self.metrics_of_best = {'score_kit': 0.0,
+                                'score_membrane': 0.0,
+                                'iou_mask_kit': 0.0,
+                                'iou_mask_membrane': 0.0,
+                                'iou_box_kit': 0.0,
+                                'iou_box_membrane': 0.0}
+        self.best_epoch = 0
         self.start_epoch = 0
         self.elapsed_time = timedelta(0)
 
-    def train(self, save_bool=False):
+    def train(self, save_state_bool=False, save_model_bool=False):
         """
         Train and validate the model for all epochs, store the training and
         validation metrics, display the results and save the best models.
         """
 
         # To log fancy progress bar
-        epoch_loop = tqdm(range(1 + self.start_epoch, self.training_args.epochs + 1))
-        epoch_loop.set_description(f"Training for {self.training_args.epochs} epochs")  # Description
+        epoch_loop = tqdm(range(1 + self.start_epoch, self.parameters.epochs + 1))
+        epoch_loop.set_description(f"Training for {self.parameters.epochs} epochs")  # Description
 
         start = time() - self.elapsed_time.seconds  #  For elapsed time
         for epoch_ndx in epoch_loop:
@@ -118,36 +128,53 @@ class TrainerSegmentation:
             if self.do_validation:
             
                 # Validate, update validation metrics and return average mask and box IoU, for each class
-                iou_mask, iou_box = self.validate(epoch_ndx)
+                scores, iou_mask, iou_box = self.validate(epoch_ndx)
                 iou_mean = np.append(iou_mask, iou_box).mean()  # Mean over four IoUs
 
                 # Update progress bar
                 epoch_loop.set_postfix_str(f"Train loss = {epoch_train_loss[-1]:.3f}, IoU (k, m) mask, box, mean = {np.round(iou_mask, 3)}, {np.round(iou_box, 3)}, {np.round(iou_mean, 3)}")
                 
-                # Check for best model and updates it
-                if iou_mean > self.best_iou:
-                    self.best_iou = iou_mean
+                # Update best model (according to custom conditions)
+                mean_condition = iou_mean > self.best_iou_mean
+                mask_membrane_condition = (iou_mean == self.best_iou_mean and iou_mask[1] > self.metrics_of_best['iou_mask_membrane'])
+                if mean_condition or mask_membrane_condition:
+                    # Metrics
+                    self.metrics_of_best['score_kit'] = scores[0]
+                    self.metrics_of_best['score_membrane'] = scores[1]
+                    self.metrics_of_best['iou_mask_kit'] = iou_mask[0]
+                    self.metrics_of_best['iou_mask_membrane'] = iou_mask[1]
+                    self.metrics_of_best['iou_box_kit'] = iou_box[0]
+                    self.metrics_of_best['iou_box_membrane'] = iou_box[1]
+
+                    self.best_iou_mean = iou_mean
+                    self.best_epoch = epoch_ndx
+                    self.best_model = copy.deepcopy(self.model)
+
+                    # Save model state
+                    if save_model_bool:
+                        self.save_model()
                     
                 # Calculate elapsed time
                 end = time()
                 self.elapsed_time = timedelta(seconds=int(end-start))
                 
-                # Save model (in separate file if it is the best)
-                if save_bool:
-                    if iou_mean == self.best_iou:
-                        self.save_model(epoch_ndx, stamp='_best')
+                # Save full class state (in separate file if it is the best)
+                if save_state_bool:
+                    if mean_condition or mask_membrane_condition:
+                        self.save_state(epoch_ndx, stamp='_best')
                     else:
-                        self.save_model(epoch_ndx, stamp='')
+                        self.save_state(epoch_ndx, stamp='')
                 
             else:
                 epoch_loop.set_postfix_str(f"Train loss = {epoch_train_loss[-1]:.3f}")
 
             # Update scheduler and log the change in learning rate
-            before_lr = self.optimizer.param_groups[0]["lr"]
-            self.scheduler.step()
-            after_lr = self.optimizer.param_groups[0]["lr"]
-            if after_lr != before_lr:
-                print(f"Epoch {epoch_ndx}: lr {before_lr} -> {after_lr}")
+            if self.scheduler is not None:
+                before_lr = self.optimizer.param_groups[0]["lr"]
+                self.scheduler.step()
+                after_lr = self.optimizer.param_groups[0]["lr"]
+                if after_lr != before_lr:
+                    print(f"Epoch {epoch_ndx}: lr {before_lr} -> {after_lr}")
 
     def init_dataloaders(self):
         """
@@ -159,8 +186,8 @@ class TrainerSegmentation:
         loader_train = init_dataloader(
             self.data_args, self.kit_id,
             data_mode='train',
-            n_batches=self.training_args.batch_size,
-            n_workers=self.training_args.num_workers,
+            n_batches=self.parameters.batch_size,
+            n_workers=self.parameters.num_workers,
             shuffle=True,
             shots=self.shots,
             transform=self.transformation_train)
@@ -170,10 +197,10 @@ class TrainerSegmentation:
             loader_val = init_dataloader(
                 self.data_args, self.kit_id,
                 data_mode=self.val_set,
-                n_batches=self.training_args.batch_size,
-                n_workers=self.training_args.num_workers,
+                n_batches=self.parameters.batch_size,
+                n_workers=self.parameters.num_workers,
                 shuffle=False,
-                shots=None,
+                shots=[None]*len(self.shots),
                 transform=self.transformation_val)
         else:
             loader_val = []
@@ -284,7 +311,7 @@ class TrainerSegmentation:
                         class_mask = masks[class_loc, 0]
 
                         # Binarize masks
-                        class_mask = (class_mask >= self.inference_args.mask_thresholds[i]).to(torch.uint8)
+                        class_mask = (class_mask >= self.evaluation_args.mask_thresholds[i]).to(torch.uint8)
 
                         # Compute IoU
                         class_iou_mask = compute_iou_mask(class_mask, target['masks'][i])
@@ -320,7 +347,7 @@ class TrainerSegmentation:
         self.metrics_val['iou_box_kit'].append(iou_boxes_avg[0])
         self.metrics_val['iou_box_membrane'].append(iou_boxes_avg[1])
 
-        return iou_masks_avg, iou_boxes_avg
+        return scores_avg, iou_masks_avg, iou_boxes_avg
 
 
     def get_metrics(self):
@@ -336,25 +363,38 @@ class TrainerSegmentation:
 
         return metrics_train_df, metrics_val_df
 
-    def save_model(self, epoch, stamp):
+    @property
+    def get_parameters(self):
         """
-        Save model state, parameters, and metrics.
+        Return parameters attribute but in dictionary format
+        """
+        return {k:v for k, v in self.parameters._get_kwargs()}
+
+    def save_state(self, epoch, stamp):
+        """
+        Save whole instance state: model state, parameters, metrics, etc
         """
         state = {'args': self.args,
-                 'kit_id': self.kit_id,
+                 'parameters': {k:v for k, v in self.parameters._get_kwargs()},
                  'do_validation': self.do_validation,
-                 'val_set': self.val_set,
-                 'shots': self.shots,
                  'model_state': self.model.state_dict(),
                  'optimizer_state': self.optimizer.state_dict(),
-                 'scheduler_state': self.scheduler.state_dict(),
+                 'scheduler_state': self.scheduler.state_dict() if self.scheduler is not None else None,
                  'metrics_train': self.metrics_train,
                  'metrics_val': self.metrics_val, 
                  'file_path': self.file_path,
                  'epoch': epoch,
                  'elapsed_time': self.elapsed_time,
-                 'best_iou': self.best_iou}
+                 'best_iou_mean': self.best_iou_mean,
+                 'metrics_of_best': self.metrics_of_best,
+                 'best_model_state': self.best_model.state_dict()}
         torch.save(state, self.file_path + stamp + '.state')
+
+    def save_model(self):
+        """
+        Save only model state 
+        """
+        torch.save({'model_state': self.model.state_dict()}, self.file_path + '_model.state')
 
     @classmethod
     def from_saved_state(cls, state_path, new_epochs=None):
@@ -366,32 +406,33 @@ class TrainerSegmentation:
         print("Loading saved state...")
         
         state = torch.load(state_path, map_location=torch.device('cpu'))
-
-        # Update new epochs in arg dictionary
+        parameters = state['parameters']
+        # Update new epochs in parameters dictionary
         if new_epochs is not None:
-            if new_epochs <= state['args'].training_args['epochs']:
-              raise ValueError(f"new_epochs ({new_epochs}) must be bigger than current epochs ({state['args'].training_args['epochs']})!")
-            state['args'].training_args['epochs'] = new_epochs
+            if new_epochs <= parameters['epochs']:
+              raise ValueError(f"new_epochs ({new_epochs}) must be bigger than current epochs ({parameters['epochs']})!")
+            parameters['epochs'] = new_epochs
         
         print(f"Epoch: {state['epoch']}")
         print(f"Best IoU: {state['best_iou']}")
         print(f"Elapsed time: {state['elapsed_time']}")
 
         trainer = cls(args=state['args'], 
-                      kit_id=state['kit_id'], 
-                      do_validation=state['do_validation'],
-                      val_set=state['val_set'], 
-                      shots=state['shots'])
+                      parameters=parameters, 
+                      do_validation=state['do_validation'])
         
         # Load model, optimizer and scheduler states
         trainer.model.load_state_dict(state['model_state'])
+        trainer.best_model.load_state_dict(state['best_model_state'])
         trainer.optimizer.load_state_dict(state['optimizer_state'])
-        trainer.scheduler.load_state_dict(state['scheduler_state'])
+        if trainer.scheduler is not None:
+            trainer.scheduler.load_state_dict(state['scheduler_state'])
         # Load metrics
         trainer.metrics_train = state['metrics_train']
         trainer.metrics_val = state['metrics_val']
         # To continue training from checkpoint correctly
-        trainer.best_iou = state['best_iou']
+        trainer.best_iou_mean = state['best_iou_mean']
+        trainer.metrics_of_best = state['metrics_of_best']
         trainer.start_epoch = state['epoch']
         trainer.elapsed_time = state['elapsed_time']
         trainer.file_path = state['file_path']

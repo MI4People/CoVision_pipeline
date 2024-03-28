@@ -8,12 +8,12 @@ def collate_fn(batch):
     """
     return tuple(zip(*batch))
 
-def init_dataloader(data_args, kit_id, data_mode, n_batches, n_workers, shuffle=False, shots=None, transform=None):
+def init_dataloader(args, kit_id, data_mode, n_batches, n_workers, shuffle=False, shots=None, transform=None):
         """
         Initialize dataloader
         """
 
-        dataset = LFASegmentationDataset(data_args,
+        dataset = LFASegmentationDataset(args,
                                          kit_id=kit_id,
                                          data_mode=data_mode,
                                          shots=shots,

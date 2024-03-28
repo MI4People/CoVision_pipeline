@@ -59,7 +59,7 @@ class TrainerClassification:
 
         # Model architecture
         self.model = ClassificationModel().to(self.device)
-        self.best_model = copy.deepcopy(self.model)  # keep track of best model
+        self.best_model = copy.deepcopy(self.model)  # Keep track of best model
         # Optimizer
         self.optimizer = optim.Adam(
             params=self.model.parameters(), 
@@ -309,7 +309,8 @@ class TrainerClassification:
                  'file_path': self.file_path,
                  'epoch': epoch_ndx,
                  'elapsed_time': self.elapsed_time,
-                 'best_accuracy': self.best_accuracy}
+                 'best_accuracy': self.best_accuracy,
+                 'best_model_state': self.best_model.state_dict()}
         torch.save(state, self.file_path + stamp + '.state')
 
     def save_model(self):
@@ -329,7 +330,7 @@ class TrainerClassification:
         
         state = torch.load(state_path, map_location=torch.device('cpu'))
         parameters = state['parameters']
-        # Update new epochs in arg dictionary
+        # Update new epochs in parameters dictionary
         if new_epochs is not None:
             if new_epochs <= parameters['epochs']:
               raise ValueError(f"new_epochs ({new_epochs}) must be bigger than current epochs ({parameters['epochs']})!")
@@ -345,6 +346,7 @@ class TrainerClassification:
         
         # Load model, optimizer and scheduler states
         trainer.model.load_state_dict(state['model_state'])
+        trainer.best_model.load_state_dict(state['best_model_state'])
         trainer.optimizer.load_state_dict(state['optimizer_state'])
         if trainer.scheduler is not None:
             trainer.scheduler.load_state_dict(state['scheduler_state'])

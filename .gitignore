@@ -1,11 +1,13 @@
 # Exclude all data files and saved models
+ngrok.yml
 data/*
-segmentation/data_seg/*
-segmentation/models_seg/*
-segmentation/results_seg/*
-
 *.jpg
+*.png
+
 classification/models_cla/mlruns/*/
 !classification/models_cla/mlruns/models/
+
+segmentation/models_seg/mlruns/*/
+!segmentation/models_seg/mlruns/models/
 
 

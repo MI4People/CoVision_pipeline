@@ -17,38 +17,36 @@ from transformations_seg import resize_image
 class LFASegmentationDataset:
     def __init__(self, args, kit_id, data_mode='all', shots=None, transforms=None):
         
+        self.args = args
+
+        # Build list of kit_ids and shots
+        if isinstance(kit_id, str):
+            self.kit_id = [kit_id]
+            if isinstance(shots, int) or shots is None:
+                self.shots = [shots]
+            else:
+                raise ValueError("shots must be an interger or None")
+        elif isinstance(kit_id, list):
+            self.kit_id = kit_id
+            if isinstance(shots, list) and len(shots)==len(self.kit_id):
+                self.shots = shots
+            else:
+                raise ValueError("shots must be a list of integers or None values (same length as kit_id)")
+        else:
+            raise ValueError("kit_id must be an instance of str or list")
+
         if data_mode not in ['all', 'train', 'val', 'test']:
             raise ValueError("data_mode must be 'all', 'train', 'val', or 'test'!")
-
-        # Configuration file and relevant features
-        self.args = args
-        self.kit_id = kit_id
-        kit_folder = os.path.join(self.args.data_dir, kit_id)
         self.data_mode = data_mode
         
         # Transformations
         self.transforms = transforms
         
-        # Load filenames of corresponding data_mode
-        filenames_df = pd.read_csv(os.path.join(kit_folder, f'{kit_id}_filenames.csv'), index_col=0)
-        if self.data_mode == 'all':
-            self.filenames = filenames_df.index.to_list()
-        else:
-            self.filenames = filenames_df[filenames_df.data_mode == self.data_mode].index.to_list()
-            
-        # If shots is specified, it picks a random subset from filenames
-        if shots is not None:
-            if shots > len(self.filenames):
-                raise ValueError(f"shots ({shots}) must be smaller than the number of elements in the dataset ({len(self.filenames)})!")
-                 
-            random.shuffle(self.filenames)
-            self.filenames = self.filenames[:shots]
-
-        # Load image, and mask full filepaths
-        self.image_paths = [os.path.join(kit_folder, f'{kit_id}_images', f'{n}.jpg') for n in self.filenames]
-        self.mask_paths = [os.path.join(kit_folder, f'{kit_id}_masks', f'{n}.png') for n in self.filenames]
+        # Load filenames, and image and mask paths of all kits in kit_id list
+        self.filenames, self.image_paths, self.mask_paths = self.build_filenames_and_paths()
         
-        print(f'Loaded {len(self.filenames)} image and mask paths for {self.kit_id} test kit in {self.data_mode} data mode')
+        # Log
+        print(f'Loaded {len(self.filenames)} image and mask paths for {"-".join(self.kit_id)} kit(s) in {self.data_mode} data mode')
 
     def __len__(self):
         
@@ -90,6 +88,38 @@ class LFASegmentationDataset:
                   'labels': labels_t}
         
         return image_t, target
+
+    def build_filenames_and_paths(self):
+
+        # To store filenames from all kits in kit_id list
+        all_filenames = []
+        all_image_paths = []
+        all_mask_paths = []
+
+        for (i, _id) in enumerate(self.kit_id):
+            # Build dataframe
+            filenames_dir = os.path.join(self.args.data_dir, _id, f'{_id}_filenames.csv')
+            filenames_df = pd.read_csv(filenames_dir, index_col=0)
+            # Filter to specific data_mode
+            if self.data_mode != 'all':
+                filenames_df = filenames_df[filenames_df.data_mode == self.data_mode]
+            filenames_df.drop(columns=['data_mode'], inplace=True)
+            # If shots is specified, it picks a random subset from the dataframe
+            shots_id = self.shots[i]
+            if shots_id is not None:
+                if shots_id > len(filenames_df):
+                    raise ValueError(f"shots ({shots_id}) must be smaller than the number of elements in the dataset ({len(filenames_df)})!")  
+                filenames_df = filenames_df.sample(shots_id)
+            filenames = filenames_df.index.tolist()
+            # Image, and mask full filepaths
+            image_paths = [os.path.join(self.args.data_dir, _id, f'{_id}_images', f'{n}.jpg') for n in filenames]
+            mask_paths = [os.path.join(self.args.data_dir, _id, f'{_id}_masks', f'{n}.png') for n in filenames]
+            # Update full lists
+            all_filenames.extend(filenames)
+            all_image_paths.extend(image_paths)
+            all_mask_paths.extend(mask_paths)
+        
+        return all_filenames, all_image_paths, all_mask_paths
     
     def build_target_from_mask(self, mask):
         """

@@ -3,6 +3,8 @@ File containing the EvalSegmentation class, the main class for evaluating a segm
 """
 
 import os
+from pathlib import Path
+import yaml
 import argparse
 import numpy as np
 import pandas as pd
@@ -27,7 +29,7 @@ class EvalSegmentation():
         
         # Split configuration file
         self.data_args = argparse.Namespace(**args.data_args)
-        self.inference_args = argparse.Namespace(**args.inference_args)
+        self.evaluation_args = argparse.Namespace(**args.evaluation_args)
         
         # Classes excluding background
         self.classes = self.data_args.classes[1:]
@@ -42,14 +44,17 @@ class EvalSegmentation():
         # Set model in evaluation mode
         self.model.eval()
     
-    def evaluate(self, kit_id, data_mode='test', show_bool=False, save_bool=False, save_filename=None):
+    def evaluate(self, kit_id, data_mode='test', show_bool=False, save_bool=False, save_path=None):
         """
         Main function. Run inference on all images in the corresponding set 
         and save all scores and IoU in a csv file.
         """
 
-        if data_mode not in ['train', 'test', 'val']:
-            raise ValueError("data_mode must be 'train', 'val', or 'test'!")
+        if data_mode not in ['all', 'train', 'test', 'val']:
+            raise ValueError("data_mode must be 'all', 'train', 'val', or 'test'!")
+
+        if isinstance(kit_id, str):
+          kit_id = [kit_id]
 
         # Initialize data loader
         loader = init_dataloader(
@@ -57,7 +62,7 @@ class EvalSegmentation():
             n_batches=self.n_batches, 
             n_workers=self.n_workers,
             shuffle=False,
-            shots=None,
+            shots=[None]*len(kit_id),
             transform=None)
 
         # Run inference on all data, returning predictions and metrics
@@ -71,29 +76,14 @@ class EvalSegmentation():
         # Format metrics as Dataframe
         metrics_df = self.get_metrics(metrics, image_names=loader.dataset.filenames)
 
-        # Save metrics to csv file
+        # Save stats to file
         if save_bool:
-            if save_filename is not None:
-                save_path = os.path.join(self.inference_args.output_dir, f'{kit_id}_{data_mode}_{save_filename}_results.csv')
-            else:
-                save_path = os.path.join(self.inference_args.output_dir, f'{kit_id}_{data_mode}_results.csv')
-
-            # Check if filename file already exists.
-            if os.path.exists(save_path):
-                overwrite = input(f"File {save_path} already exists! Do you want to overwrite it? (y/n): ")
-                while overwrite not in ['y', 'n']:
-                    overwrite = input(f"Introduce 'y' or 'n': ")        
-                if overwrite == 'n':
-                    print('The file was not overwritten :)')
-                if overwrite == 'y':
-                    metrics_df.to_csv(save_path)
-            else:
-                metrics_df.to_csv(save_path)
+            self.save_results(save_path, metrics_df, kit_id, data_mode)
 
         # Log mean value of the metrics
         print('Mean metrics')
-        for k, v in metrics_df.mean().items():
-            print(f'{k}: {v:.4f}')
+        print(metrics_df.mean())
+        print(f'iou_mean: {metrics_df.iloc[:, 2:].mean().mean():.4f}')
             
         return metrics_df
     
@@ -183,7 +173,7 @@ class EvalSegmentation():
                     class_mask = masks[class_loc, 0]
 
                     # Binarize masks
-                    class_mask = (class_mask >= self.inference_args.mask_thresholds[i]).to(torch.uint8)
+                    class_mask = (class_mask >= self.evaluation_args.mask_thresholds[i]).to(torch.uint8)
 
                     # Compute IoU
                     class_iou_mask = compute_iou_mask(class_mask, target['masks'][i])
@@ -226,3 +216,46 @@ class EvalSegmentation():
         metrics_df.index = pd.Index(image_names, name='image_names')
 
         return metrics_df
+
+    def save_results(self, save_path, metrics_df, kit_id, data_mode):
+      """
+      Save metrics_df as a csv file
+      """
+
+      # Create folder if it doesn't exist
+      if not os.path.exists(save_path):
+          Path(save_path).mkdir(parents=True, exist_ok=True)
+      
+      # Convert kit_id list into concatenated strings
+      kit_id = '-'.join(kit_id)
+      # Create the paths and ask whether to overwrite them or not
+      stats_path = os.path.join(save_path, f'{kit_id}_{data_mode}_stats.csv')
+      iou_mean_path = os.path.join(save_path, f'{kit_id}_{data_mode}_iou_mean.txt')
+      info_path = os.path.join(save_path, f'{kit_id}_{data_mode}_info.yaml')
+      
+      # Compute statistics
+      metrics_stats = metrics_df.describe().loc[['mean', 'min', 'max']]
+      iou_mean = metrics_df.iloc[:, 2:].mean().mean()
+      count = len(metrics_df)
+
+      for _path in [stats_path, iou_mean_path, info_path]:
+          if os.path.exists(_path):
+              overwrite = input(f"File {_path} already exists! Do you want to overwrite it? (y/n): ")
+              while overwrite not in ['y', 'n']:
+                  overwrite = input(f"Introduce 'y' or 'n': ")
+              if overwrite == 'n':
+                  print('The file was not overwritten :)')
+                  continue  # Skip interation
+              elif overwrite == 'y':
+                  print('The file will be overwritten!')
+
+          # Save
+          if _path == stats_path:
+              metrics_stats.to_csv(_path)
+          elif _path == iou_mean_path:
+              with open(_path, 'w') as f:
+                f.write(str(iou_mean))
+          elif _path == info_path:
+              with open(_path, 'w') as f:
+                  yaml.dump({'n_set': count}, f)
+              

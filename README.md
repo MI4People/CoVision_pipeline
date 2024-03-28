@@ -4,6 +4,13 @@
 To be continued...
 
 
+# Directory structure
+
+`data`:
+`segmentation`
+`classification`
+`utils`: Contains some util scripts common to both, segmentation and classification, pipelines.
+
 
 #TODOs
 
