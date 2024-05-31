@@ -1,4 +1,4 @@
-# CoVision_pipeline
+# CoVision
 
 
 To be continued...
