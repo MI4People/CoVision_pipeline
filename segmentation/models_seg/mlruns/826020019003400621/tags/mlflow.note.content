@@ -1,0 +1,3 @@
+This is the kit and membrane segmentation project.
+This experiment uses a MaskRCNN with ResNet50 backbone architecture.
+This experiment uses the full aconag trainset for trainning.

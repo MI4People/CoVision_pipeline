@@ -1,0 +1,16 @@
+artifact_uri: file:///home/guybrush/Tomaco/covision/classification/mlruns/74b57b85c2af4722ad6ad68de1a44348/artifacts
+deleted_time: 1710855077543
+end_time: 1710854798651
+entry_point_name: ''
+experiment_id: '352874881229621084'
+lifecycle_stage: deleted
+run_id: 74b57b85c2af4722ad6ad68de1a44348
+run_name: intelligent-mare-659
+run_uuid: 74b57b85c2af4722ad6ad68de1a44348
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1710854794278
+status: 3
+tags: []
+user_id: guybrush

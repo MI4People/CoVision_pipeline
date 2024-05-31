@@ -1,0 +1,15 @@
+artifact_uri: file:///home/guybrush/Tomaco/covision/classification/models_cla/mlruns/630755756482709602/ef1599f5349c47f8a31b3bf8a5b58c39/artifacts
+end_time: 1710858862839
+entry_point_name: ''
+experiment_id: '630755756482709602'
+lifecycle_stage: active
+run_id: ef1599f5349c47f8a31b3bf8a5b58c39
+run_name: traveling-shrew-907
+run_uuid: ef1599f5349c47f8a31b3bf8a5b58c39
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1710858857208
+status: 3
+tags: []
+user_id: guybrush

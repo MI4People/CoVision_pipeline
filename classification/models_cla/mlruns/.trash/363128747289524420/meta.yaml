@@ -1,0 +1,13 @@
+artifact_location: mlflow-artifacts:/363128747289524420
+creation_time: 1710785813072
+experiment_id: '363128747289524420'
+last_update_time: 1710786030091
+lifecycle_stage: deleted
+name: Resnet18_Full_Aconag
+tags:
+  architecture: resnet18
+  data: full_aconag
+  mlflow.note.content: This is the membrane classifier project.This experiment uses
+    the simple ResNet18 architecture with a 1-layer output for binary classification.This
+    experiment uses the full aconag trainset for trainning.
+  project_name: membrane_classifier

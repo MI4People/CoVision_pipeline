@@ -1,0 +1,6 @@
+artifact_location: file:///home/guybrush/Tomaco/covision/classification/models_cla/mlruns/630755756482709602
+creation_time: 1710856454470
+experiment_id: '630755756482709602'
+last_update_time: 1710856454470
+lifecycle_stage: active
+name: Resnet18_Full_Aconag

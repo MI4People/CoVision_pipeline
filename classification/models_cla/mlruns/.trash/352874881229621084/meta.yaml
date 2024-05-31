@@ -1,0 +1,16 @@
+artifact_location: file:///home/guybrush/Tomaco/covision/classification/mlruns
+creation_time: 1710854748440
+experiment_id: '352874881229621084'
+last_update_time: 1710855077543
+lifecycle_stage: deleted
+name: Testing
+tags:
+  architecture: resnet18
+  data: full_aconag
+  mlflow.note.content: 'This is the membrane classifier project.
+
+    This experiment uses the simple ResNet18 architecture with a 1-layer output for
+    binary classification.
+
+    This experiment uses the full aconag trainset for trainning.'
+  project_name: membrane_classifier

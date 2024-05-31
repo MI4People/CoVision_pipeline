@@ -1,0 +1,15 @@
+artifact_uri: file:///home/guybrush/Tomaco/covision/classification/models_cla/mlruns/630755756482709602/ec465837146949458299ea7667ea4682/artifacts
+end_time: 1710862820217
+entry_point_name: ''
+experiment_id: '630755756482709602'
+lifecycle_stage: active
+run_id: ec465837146949458299ea7667ea4682
+run_name: marvelous-donkey-898
+run_uuid: ec465837146949458299ea7667ea4682
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1710862813912
+status: 3
+tags: []
+user_id: guybrush

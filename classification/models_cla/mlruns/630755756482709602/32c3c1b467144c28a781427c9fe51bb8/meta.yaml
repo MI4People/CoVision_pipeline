@@ -1,0 +1,15 @@
+artifact_uri: file:///home/guybrush/Tomaco/covision/classification/models_cla/mlruns/630755756482709602/32c3c1b467144c28a781427c9fe51bb8/artifacts
+end_time: 1710859912831
+entry_point_name: ''
+experiment_id: '630755756482709602'
+lifecycle_stage: active
+run_id: 32c3c1b467144c28a781427c9fe51bb8
+run_name: adaptable-hare-880
+run_uuid: 32c3c1b467144c28a781427c9fe51bb8
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1710859907394
+status: 3
+tags: []
+user_id: guybrush

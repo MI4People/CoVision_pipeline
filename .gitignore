@@ -3,11 +3,6 @@ ngrok.yml
 data/*
 *.jpg
 *.png
-
-classification/models_cla/mlruns/*/
-!classification/models_cla/mlruns/models/
-
-segmentation/models_seg/mlruns/*/
-!segmentation/models_seg/mlruns/models/
+*.pth
 
 

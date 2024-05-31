@@ -1,0 +1,15 @@
+artifact_uri: file:///home/guybrush/Tomaco/covision/classification/models_cla/mlruns/630755756482709602/5c6cc97eb120476ca464389843fcb000/artifacts
+end_time: 1710873439159
+entry_point_name: ''
+experiment_id: '630755756482709602'
+lifecycle_stage: active
+run_id: 5c6cc97eb120476ca464389843fcb000
+run_name: 100_accuracy_valset
+run_uuid: 5c6cc97eb120476ca464389843fcb000
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1710873432267
+status: 3
+tags: []
+user_id: guybrush

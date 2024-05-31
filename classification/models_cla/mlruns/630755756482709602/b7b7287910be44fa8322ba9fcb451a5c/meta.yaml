@@ -1,0 +1,15 @@
+artifact_uri: file:///home/guybrush/Tomaco/covision/classification/models_cla/mlruns/630755756482709602/b7b7287910be44fa8322ba9fcb451a5c/artifacts
+end_time: 1710865172569
+entry_point_name: ''
+experiment_id: '630755756482709602'
+lifecycle_stage: active
+run_id: b7b7287910be44fa8322ba9fcb451a5c
+run_name: vaunted-moose-899
+run_uuid: b7b7287910be44fa8322ba9fcb451a5c
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1710865166937
+status: 3
+tags: []
+user_id: guybrush

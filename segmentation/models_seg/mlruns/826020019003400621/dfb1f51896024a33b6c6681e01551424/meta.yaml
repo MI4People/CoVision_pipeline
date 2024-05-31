@@ -1,0 +1,15 @@
+artifact_uri: /home/guybrush/Tomaco/covision/segmentation/models_seg/mlruns/826020019003400621/dfb1f51896024a33b6c6681e01551424/artifacts
+end_time: 1711618852297
+entry_point_name: ''
+experiment_id: '826020019003400621'
+lifecycle_stage: active
+run_id: dfb1f51896024a33b6c6681e01551424
+run_name: rare-bass-30
+run_uuid: dfb1f51896024a33b6c6681e01551424
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1711618841082
+status: 3
+tags: []
+user_id: root

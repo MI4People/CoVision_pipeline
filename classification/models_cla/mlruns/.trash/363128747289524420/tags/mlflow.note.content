@@ -1,0 +1,1 @@
+This is the membrane classifier project.This experiment uses the simple ResNet18 architecture with a 1-layer output for binary classification.This experiment uses the full aconag trainset for trainning.

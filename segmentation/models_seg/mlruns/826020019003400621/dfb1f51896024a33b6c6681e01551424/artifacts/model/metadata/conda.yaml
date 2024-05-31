@@ -1,0 +1,25 @@
+channels:
+- conda-forge
+dependencies:
+- python=3.10.12
+- pip<=23.1.2
+- pip:
+  - mlflow==2.11.3
+  - astunparse==1.6.3
+  - attrs==23.2.0
+  - cffi==1.16.0
+  - cloudpickle==2.2.1
+  - defusedxml==0.7.1
+  - etils==1.7.0
+  - importlib-resources==6.4.0
+  - jax==0.4.23
+  - jaxlib==0.4.23
+  - pandas==1.5.3
+  - pathlib==1.0.1
+  - pydantic==2.6.4
+  - pydot==1.4.2
+  - rich==13.7.1
+  - torch==2.2.1
+  - torchvision==0.17.1
+  - transformers==4.38.2
+name: mlflow-env
