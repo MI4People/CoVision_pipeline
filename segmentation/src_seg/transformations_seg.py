@@ -2,10 +2,7 @@
 File containing data transformations to use during training and inference.
 """
 
-import random
 import cv2
-import numpy as np
-import torch
 import albumentations as A
 
 

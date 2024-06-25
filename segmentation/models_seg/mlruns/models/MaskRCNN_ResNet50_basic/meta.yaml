@@ -1,0 +1,6 @@
+aliases: {}
+creation_timestamp: 1717954307753
+description: MaskRCNN architecture with a ResNet-50 backbone for image classification
+  into the two classes kit and membrane.
+last_updated_timestamp: 1717954444322
+name: MaskRCNN_ResNet50_basic

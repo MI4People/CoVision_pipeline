@@ -1,9 +1,8 @@
 """
-File containg the main Dataset class for image segmentation. 
+File containing the main Dataset class for image segmentation. 
 """
 
 import os
-import random
 import numpy as np
 import pandas as pd
 import torch
@@ -25,7 +24,7 @@ class LFASegmentationDataset:
             if isinstance(shots, int) or shots is None:
                 self.shots = [shots]
             else:
-                raise ValueError("shots must be an interger or None")
+                raise ValueError("shots must be an integer or None")
         elif isinstance(kit_id, list):
             self.kit_id = kit_id
             if isinstance(shots, list) and len(shots)==len(self.kit_id):
@@ -72,7 +71,7 @@ class LFASegmentationDataset:
         # Apply transforms if applicable
         if self.transforms is not None:
             image, mask = self.transforms(image, mask)
-        
+
         # Build category mask, bounding boxes, and labels from RGB mask
         masks_cat, boxes, labels =  self.build_target_from_mask(mask)
 

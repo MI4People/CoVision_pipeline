@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1717954307809
+current_stage: None
+description: ''
+last_updated_timestamp: 1717954307809
+name: MaskRCNN_ResNet50_basic
+run_id: 2d2f63e38dd74a41bdb8fa6d18aaab34
+run_link: ''
+source: /home/guybrush/tomaco/covision/segmentation/models_seg/mlruns/826020019003400621/2d2f63e38dd74a41bdb8fa6d18aaab34/artifacts/model
+status: READY
+status_message: null
+storage_location: /home/guybrush/tomaco/covision/segmentation/models_seg/mlruns/826020019003400621/2d2f63e38dd74a41bdb8fa6d18aaab34/artifacts/model
+user_id: null
+version: 1

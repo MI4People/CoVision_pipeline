@@ -2,10 +2,8 @@
 File containing the TrainerSegmentation class, the main class for training and validating a segmentation model.
 """
 
-import os
 import argparse
 import copy
-import random
 import numpy as np
 import pandas as pd
 import torch
@@ -14,12 +12,11 @@ from torch.optim import Adam, lr_scheduler
 from time import time
 from datetime import datetime as dt
 from datetime import timedelta
-from tqdm.notebook import tqdm, trange  # Just to log fancy training progress bar
+from tqdm.notebook import tqdm  # Just to log fancy training progress bar
 
 # Custom packages
 from utils_seg.miscellaneous import set_seed, compute_iou_mask, compute_iou_box
 from transformations_seg import TransformationSegmentationTraining
-from dataset_seg import LFASegmentationDataset
 from dataloader_seg import init_dataloader
 from model_seg import get_segmentation_model
 
@@ -217,11 +214,11 @@ class TrainerSegmentation:
         running_loss = np.zeros(len(self.metrics_train))
 
         # To log fancy progress bar
-        train_loop = tqdm(enumerate(self.loader_train, start=1), total=self.n_train)
+        train_loop = tqdm(self.loader_train, total=self.n_train)
         train_loop.set_description(f"Epoch {epoch_ndx} | Training")
 
         self.model.train()
-        for i, (images, targets) in train_loop:
+        for images, targets in train_loop:
 
             # Send to device
             images = list(image.to(self.device) for image in images)

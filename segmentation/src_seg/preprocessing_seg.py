@@ -1,16 +1,13 @@
 """
-This file...
+This file prepares the segmentation dataset before any training or testing. 
+It must be run everytime we want a new train-val-test split and, after that, 
+it is not needed to be ran again.
 """
 
-import yaml
 import os
 import sys
 import random
-import shutil
-import numpy as np
 import pandas as pd
-import cv2
-
 
 def split_data(args, kit_id):
     """
@@ -35,7 +32,7 @@ def split_data(args, kit_id):
     if os.path.exists(save_path):
         overwrite = input(f"File {save_path} already exists! Do you want to overwrite it? (y/n): ")
         while overwrite not in ['y', 'n']:
-            overwrite = input(f"Introduce 'y' or 'n': ")
+            overwrite = input("Introduce 'y' or 'n': ")
         if overwrite == 'n':
             sys.exit('The file was not overwritten :)')
     

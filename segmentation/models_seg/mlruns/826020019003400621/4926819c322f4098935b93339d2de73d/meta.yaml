@@ -1,0 +1,15 @@
+artifact_uri: /home/guybrush/tomaco/covision/segmentation/models_seg/mlruns/826020019003400621/4926819c322f4098935b93339d2de73d/artifacts
+end_time: 1717948796074
+entry_point_name: ''
+experiment_id: '826020019003400621'
+lifecycle_stage: active
+run_id: 4926819c322f4098935b93339d2de73d
+run_name: capable-auk-759
+run_uuid: 4926819c322f4098935b93339d2de73d
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1717948795414
+status: 3
+tags: []
+user_id: root

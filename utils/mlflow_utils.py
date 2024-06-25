@@ -31,7 +31,7 @@ def initiate_mlflow_server(using_colab):
 
   else:
 
-    os.system("fuser -k 5000/tcp")  # Termine open servers
+    os.system("fuser -k 5000/tcp")  # Terminate open servers
     os.system("mlflow server &")  # By default: host = localhost (127.0.0.1), port = 5000
 
     mlflow.set_tracking_uri(uri="http://127.0.0.1:5000")

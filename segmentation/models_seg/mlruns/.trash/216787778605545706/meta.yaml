@@ -1,0 +1,15 @@
+artifact_location: /home/guybrush/tomaco/covision/segmentation/models_seg/mlruns/216787778605545706
+creation_time: 1717157840991
+experiment_id: '216787778605545706'
+last_update_time: 1717781532408
+lifecycle_stage: deleted
+name: TEST
+tags:
+  architecture: maskrcnn_resnet50
+  data: full_aconag
+  mlflow.note.content: 'This is the kit and membrane segmentation project.
+
+    This experiment uses a MaskRCNN with ResNet50 backbone architecture.
+
+    This experiment uses the full aconag trainset for trainning.'
+  project_name: kit_membrane_segmentation
